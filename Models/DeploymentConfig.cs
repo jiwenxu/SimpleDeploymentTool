@@ -14,6 +14,7 @@ namespace SimpleDeploymentTool.Models {
         public string RemoteSavePath { get; set; } // 服务器保存路径
         public string LocalFilePath { get; set; } // 本地文件路径
         public string RemoteBackupPath { get; set; } // 服务器备份路径
+        public string fingerPrint { get; set; }// 指纹
         public DateTime CreatedDate { get; set; }
         public DateTime UpdatedDate { get; set; }
 

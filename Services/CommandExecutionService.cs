@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Text;
+using System.IO;
+using WinSCP;
 using SimpleDeploymentTool.Models;
+using System.Text.RegularExpressions;
 
 namespace SimpleDeploymentTool.Services {
     public class CommandExecutionService {
@@ -20,77 +23,43 @@ namespace SimpleDeploymentTool.Services {
         /// 执行上传命令
         /// </summary>
         public void ExecuteUpload(DeploymentConfig config) {
-            if (string.IsNullOrEmpty(_toolSettings.WinSCPPath) || !System.IO.File.Exists(_toolSettings.WinSCPPath)) {
-                OnErrorReceived("WinSCP路径无效或未配置");
-                OnExecutionCompleted();
-                return;
-            }
 
             try {
-                // 构建WinSCP脚本内容
-                var scriptBuilder = new StringBuilder();
-                scriptBuilder.AppendLine("echo \"连接远程服务器\"");
+                var fingerPrint = config.fingerPrint;
+                SessionOptions sessionOptions = new SessionOptions {
+                    Protocol = Protocol.Sftp,
+                    HostName = config.IpAddress,
+                    UserName = config.Username,
+                    SshHostKeyFingerprint = fingerPrint,
+                };
+                sessionOptions.PortNumber = config.Port;
 
                 // 连接命令
                 if (!string.IsNullOrEmpty(config.SshKeyPath) && System.IO.File.Exists(config.SshKeyPath)) {
-                    scriptBuilder.AppendLine($"open sftp://{config.Username}@{config.IpAddress}:{config.Port} -privatekey=\"{config.SshKeyPath}\"");
+                    sessionOptions.SshPrivateKeyPath = config.SshKeyPath;
                 } else {
-                    scriptBuilder.AppendLine($"open sftp://{config.Username}:{config.Password}@{config.IpAddress}:{config.Port}");
+                    sessionOptions.Password = config.Password;
+                }
+                using (Session session = new Session()) {
+                    session.FileTransferProgress += (s, e) =>
+                    {
+                        OnOutputReceived($"Progress: {e.FileProgress * 100}%");
+                    };
+                    session.Open(sessionOptions);
+
+                    TransferOptions transferOptions = new TransferOptions();
+                    transferOptions.TransferMode = TransferMode.Binary;
+                    string remotePath = config.RemoteSavePath;
+                    if (!remotePath.EndsWith("/")) {
+                        remotePath += "/";
+                    }
+                    remotePath += Path.GetFileName(config.LocalFilePath);
+                    TransferOperationResult transferResult = session.PutFiles(
+                        config.LocalFilePath, remotePath, false, transferOptions);
+                    transferResult.Check();
                 }
 
-                // 切换到服务器保存目录
-                scriptBuilder.AppendLine("echo \"进入目录\"");
-                scriptBuilder.AppendLine($"cd \"{config.RemoteSavePath}\"");
-                scriptBuilder.AppendLine("echo \"上传文件\"");
-                // 上传文件
-                scriptBuilder.AppendLine($"put \"{config.LocalFilePath}\"");
-
-                // 退出
-                scriptBuilder.AppendLine("exit");
-
-                // 创建临时脚本文件
-                var scriptPath = System.IO.Path.GetTempFileName() + ".txt";
-                System.IO.File.WriteAllText(scriptPath, scriptBuilder.ToString());
-                // 打印完整命令用于调试
-                OnOutputReceived($"[调试] 执行命令: {_toolSettings.WinSCPPath} {scriptBuilder.ToString()}");
-                // 配置进程
-                _process = new Process {
-                    StartInfo = new ProcessStartInfo {
-                        FileName = _toolSettings.WinSCPPath,
-                        Arguments = $"/console /script=\"{scriptPath}",
-                        UseShellExecute = false,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true,
-                        CreateNoWindow = true,
-                        StandardOutputEncoding = Encoding.UTF8,
-                        StandardErrorEncoding = Encoding.UTF8
-                    }
-                };
-
-                // 注册事件
-                _process.OutputDataReceived += (sender, e) => {
-                    if (!string.IsNullOrEmpty(e.Data))
-                        OnOutputReceived(e.Data);
-                };
-
-                _process.ErrorDataReceived += (sender, e) => {
-                    if (!string.IsNullOrEmpty(e.Data))
-                        OnErrorReceived(e.Data);
-                };
-
-                _process.Exited += (sender, e) => {
-                    OnExecutionCompleted();
-                    // 清理临时文件
-                    if (System.IO.File.Exists(scriptPath)) {
-                        try { System.IO.File.Delete(scriptPath); } catch { }
-                    }
-                };
-
-                // 启动进程
-                _process.EnableRaisingEvents = true;
-                _process.Start();
-                _process.BeginOutputReadLine();
-                _process.BeginErrorReadLine();
+                OnExecutionCompleted();
             } catch (Exception ex) {
                 OnErrorReceived($"执行上传命令出错: {ex.Message}");
                 OnExecutionCompleted();
@@ -318,6 +287,69 @@ namespace SimpleDeploymentTool.Services {
 
             // 否则使用putty路径
             return _toolSettings.PuTTYPath;
+        }
+
+        /// <summary>
+        /// 获取远程服务器的 SshHostKeyFingerprint
+        /// </summary>
+        /// <param name="winscpPath">WinSCP.com 的完整路径</param>
+        /// <param name="host">主机名或 IP</param>
+        /// <param name="port">端口，默认 22</param>
+        /// <param name="username">用户名</param>
+        /// <returns>ssh-rsa / ssh-ed25519 指纹字符串</returns>
+        private string GetSshHostKeyFingerprint(
+            string winscpPath,
+            string host,
+            string username,
+            string privateKeyPath,
+            string password,
+            int port = 22) {
+            var scriptBuilder = new StringBuilder();
+            if (!string.IsNullOrEmpty(privateKeyPath) && System.IO.File.Exists(privateKeyPath)) {
+                scriptBuilder.AppendLine($"\"open sftp://{username}@{host}:{port} -privatekey=\"\"{privateKeyPath}\" -hostkey=*\" \"exit\"");
+            } else {
+                scriptBuilder.AppendLine($"\"open sftp://{username}:{password}@{host}:{port} -hostkey=*\" \"exit\"");
+            }
+
+            var startInfo = new ProcessStartInfo {
+                FileName = winscpPath,
+                Arguments = $"/command {scriptBuilder.ToString()}",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+                StandardOutputEncoding = Encoding.UTF8,
+                StandardErrorEncoding = Encoding.UTF8
+            };
+            OnOutputReceived($"获取指纹: {winscpPath} /command {scriptBuilder.ToString()}");
+            using var process = new Process { StartInfo = startInfo };
+            var outputBuilder = new StringBuilder();
+            process.OutputDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                    outputBuilder.AppendLine(e.Data);
+            };
+            process.ErrorDataReceived += (s, e) =>
+            {
+                if (!string.IsNullOrEmpty(e.Data))
+                    outputBuilder.AppendLine(e.Data);
+            };
+
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+
+            string output = outputBuilder.ToString();
+
+            // WinSCP 输出里会包含类似：
+            // "Host key fingerprint is ssh-ed25519 255 SHA256:xxxxxxxxxxxxxxxx"
+            var match = Regex.Match(output, @"Host key fingerprint is (?<fp>.+)");
+            if (match.Success) {
+                return match.Groups["fp"].Value.Trim();
+            }
+
+            throw new Exception("未能解析到 HostKey 指纹。输出如下：\n" + output);
         }
 
         /// <summary>
