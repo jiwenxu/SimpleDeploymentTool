@@ -48,6 +48,7 @@ namespace SimpleDeploymentTool {
             btnExecuteUpload.Enabled = false;
             btnExecuteBuild.Enabled = false;
             btnBackup.Enabled = false;
+            btnList.Enabled = false;
         }
 
         /// <summary>
@@ -204,6 +205,14 @@ namespace SimpleDeploymentTool {
             var selectedConfig = _selectedProject.Configurations[lstConfigurations.SelectedIndex];
             ExecuteCommand(selectedConfig, CommandEnum.Backup);
         }
+        private void btnList_Click(object sender, EventArgs e) {
+            if (_selectedProject == null || lstConfigurations.SelectedIndex < 0) return;
+
+            var selectedConfig = _selectedProject.Configurations[lstConfigurations.SelectedIndex];
+            using (var executionForm = new FileManagerForm(selectedConfig)) {
+                executionForm.ShowDialog();
+            }
+        }
 
         /// <summary>
         /// 执行命令
@@ -235,6 +244,7 @@ namespace SimpleDeploymentTool {
             btnExecuteUpload.Enabled = hasSelected;
             btnExecuteBuild.Enabled = hasSelected;
             btnBackup.Enabled = hasSelected;
+            btnList.Enabled = hasSelected;
         }
 
         private void btnSettings_Click(object sender, EventArgs e) {
@@ -271,6 +281,7 @@ namespace SimpleDeploymentTool {
             this.btnAddConfig = new System.Windows.Forms.Button();
             this.btnBackup = new System.Windows.Forms.Button();
             this.btnSettings = new System.Windows.Forms.Button();
+            this.btnList = new System.Windows.Forms.Button();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer1)).BeginInit();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
@@ -368,6 +379,7 @@ namespace SimpleDeploymentTool {
             this.groupBox2.Controls.Add(this.btnEditConfig);
             this.groupBox2.Controls.Add(this.btnAddConfig);
             this.groupBox2.Controls.Add(this.btnBackup);
+            this.groupBox2.Controls.Add(this.btnList);
             this.groupBox2.Dock = System.Windows.Forms.DockStyle.Fill;
             this.groupBox2.Location = new System.Drawing.Point(0, 0);
             this.groupBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -392,10 +404,10 @@ namespace SimpleDeploymentTool {
             // 
             // btnExecuteBuild
             // 
-            this.btnExecuteBuild.Location = new System.Drawing.Point(392, 741);
+            this.btnExecuteBuild.Location = new System.Drawing.Point(320, 741);
             this.btnExecuteBuild.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnExecuteBuild.Name = "btnExecuteBuild";
-            this.btnExecuteBuild.Size = new System.Drawing.Size(88, 33);
+            this.btnExecuteBuild.Size = new System.Drawing.Size(70, 33);
             this.btnExecuteBuild.TabIndex = 4;
             this.btnExecuteBuild.Text = "执行编译";
             this.btnExecuteBuild.UseVisualStyleBackColor = true;
@@ -403,10 +415,10 @@ namespace SimpleDeploymentTool {
             // 
             // btnExecuteUpload
             // 
-            this.btnExecuteUpload.Location = new System.Drawing.Point(296, 741);
+            this.btnExecuteUpload.Location = new System.Drawing.Point(242, 741);
             this.btnExecuteUpload.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnExecuteUpload.Name = "btnExecuteUpload";
-            this.btnExecuteUpload.Size = new System.Drawing.Size(88, 33);
+            this.btnExecuteUpload.Size = new System.Drawing.Size(70, 33);
             this.btnExecuteUpload.TabIndex = 3;
             this.btnExecuteUpload.Text = "执行上传";
             this.btnExecuteUpload.UseVisualStyleBackColor = true;
@@ -414,10 +426,10 @@ namespace SimpleDeploymentTool {
             // 
             // btnDeleteConfig
             // 
-            this.btnDeleteConfig.Location = new System.Drawing.Point(200, 741);
+            this.btnDeleteConfig.Location = new System.Drawing.Point(164, 741);
             this.btnDeleteConfig.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnDeleteConfig.Name = "btnDeleteConfig";
-            this.btnDeleteConfig.Size = new System.Drawing.Size(88, 33);
+            this.btnDeleteConfig.Size = new System.Drawing.Size(70, 33);
             this.btnDeleteConfig.TabIndex = 2;
             this.btnDeleteConfig.Text = "删除配置";
             this.btnDeleteConfig.UseVisualStyleBackColor = true;
@@ -425,10 +437,10 @@ namespace SimpleDeploymentTool {
             // 
             // btnEditConfig
             // 
-            this.btnEditConfig.Location = new System.Drawing.Point(104, 741);
+            this.btnEditConfig.Location = new System.Drawing.Point(86, 741);
             this.btnEditConfig.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnEditConfig.Name = "btnEditConfig";
-            this.btnEditConfig.Size = new System.Drawing.Size(88, 33);
+            this.btnEditConfig.Size = new System.Drawing.Size(70, 33);
             this.btnEditConfig.TabIndex = 1;
             this.btnEditConfig.Text = "编辑配置";
             this.btnEditConfig.UseVisualStyleBackColor = true;
@@ -439,7 +451,7 @@ namespace SimpleDeploymentTool {
             this.btnAddConfig.Location = new System.Drawing.Point(8, 741);
             this.btnAddConfig.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnAddConfig.Name = "btnAddConfig";
-            this.btnAddConfig.Size = new System.Drawing.Size(88, 33);
+            this.btnAddConfig.Size = new System.Drawing.Size(70, 33);
             this.btnAddConfig.TabIndex = 0;
             this.btnAddConfig.Text = "添加配置";
             this.btnAddConfig.UseVisualStyleBackColor = true;
@@ -447,21 +459,32 @@ namespace SimpleDeploymentTool {
             // 
             // btnBackup
             // 
-            this.btnBackup.Location = new System.Drawing.Point(488, 741);
+            this.btnBackup.Location = new System.Drawing.Point(398, 741);
             this.btnBackup.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnBackup.Name = "btnBackup";
-            this.btnBackup.Size = new System.Drawing.Size(88, 33);
+            this.btnBackup.Size = new System.Drawing.Size(70, 33);
             this.btnBackup.TabIndex = 7;
             this.btnBackup.Text = "执行备份";
             this.btnBackup.UseVisualStyleBackColor = true;
             this.btnBackup.Click += new System.EventHandler(this.btnBackup_Click);
+            // 
+            // btnList
+            // 
+            this.btnList.Location = new System.Drawing.Point(476, 741);
+            this.btnList.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnList.Name = "btnList";
+            this.btnList.Size = new System.Drawing.Size(70, 33);
+            this.btnList.TabIndex = 8;
+            this.btnList.Text = "文件列表";
+            this.btnList.UseVisualStyleBackColor = true;
+            this.btnList.Click += new System.EventHandler(this.btnList_Click);
             // 
             // btnSettings
             // 
             this.btnSettings.Location = new System.Drawing.Point(14, 17);
             this.btnSettings.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnSettings.Name = "btnSettings";
-            this.btnSettings.Size = new System.Drawing.Size(88, 33);
+            this.btnSettings.Size = new System.Drawing.Size(70, 33);
             this.btnSettings.TabIndex = 1;
             this.btnSettings.Text = "工具设置";
             this.btnSettings.UseVisualStyleBackColor = true;
@@ -503,6 +526,7 @@ namespace SimpleDeploymentTool {
         private Button btnAddConfig;
         private Button btnBackup;
         private Button btnSettings;
+        private Button btnList;
         #endregion
     }
 }
