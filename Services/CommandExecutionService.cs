@@ -91,19 +91,14 @@ namespace SimpleDeploymentTool.Services {
                                  $"if [ $? -ne 0 ]; then " +  // 检查cd命令是否成功
                                  $"echo \"错误: 无法进入目录 {config.RemoteSavePath}\"; exit 1; " +
                                  "fi; " +
-                                 //$"if [ -f \"{fileName}\" ]; then " +  // 检查文件是否存在
-                                 //$"cp \"{fileName}\" \"{EscapePath(config.RemoteBackupPath)}/{fileName}.{timeStamp}\"; " +
-                                 //"echo \"备份成功: " + fileName + "." + timeStamp + "\"; " +
-                                 //"else " +
-                                 //"echo \"警告: 源文件不存在，继续执行编译\"; " +
-                                 //"fi; " +
                                  "cd ..;" +
                                  "if [ -f \"run.sh\" ]; then " +  // 检查脚本是否存在
                                  "sh run.sh build; " +
                                  "sh run.sh status; " +
                                  "else " +
                                  "echo \"错误: run.sh脚本不存在于当前目录\"; exit 1; " +
-                                 "fi";
+                                 "fi;" + 
+                                 "exit;";
 
                 // 创建进程启动信息
                 var startInfo = new ProcessStartInfo {
@@ -120,15 +115,16 @@ namespace SimpleDeploymentTool.Services {
                 var arguments = new StringBuilder();
 
                 // 基础SSH连接参数
-                arguments.Append($"-ssh {config.Username}@{config.IpAddress} ");
+                arguments.Append($"-l {config.Username} ");
+                //arguments.Append($"-ssh {config.Username}@{config.IpAddress} ");
                 arguments.Append($"-P {config.Port} ");
-                arguments.Append($"-no-antispoof ");
+                arguments.Append($"-ssh -no-antispoof {config.Username}@{config.IpAddress} ");
 
                 // 根据认证方式添加参数
                 if (!string.IsNullOrEmpty(config.SshKeyPath) && System.IO.File.Exists(config.SshKeyPath)) {
                     // SSH密钥认证
                     arguments.Append($"-i \"{EscapePath(config.SshKeyPath)}\" ");
-                    arguments.Append($"-m -");  // 通过标准输入传递命令
+                    //arguments.Append($"-m - ");  // 通过标准输入传递命令
                     startInfo.RedirectStandardInput = true;
                 } else if (!string.IsNullOrEmpty(config.Password)) {
                     arguments.Append($"-pw \"{EscapePassword(config.Password)}\" ");
@@ -204,7 +200,7 @@ namespace SimpleDeploymentTool.Services {
                                    "echo \"备份成功: " + fileName + "." + timeStamp + "\"; " +
                                    "else " +
                                    "echo \"错误: 源文件不存在\"; " +
-                                   "fi";
+                                   "fi;";
 
                 // 创建进程启动信息
                 var startInfo = new ProcessStartInfo {
